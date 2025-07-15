@@ -31,7 +31,7 @@ interface ServerToClientEvents {
   roomJoined: (data: JoinRoomDataType) => void;
   bothPlayersReady: () => void;
   moveMade: (move: MoveDataType["move"], moveColor: Color) => void;
-  gameOver: (data: { winner?: Color }) => void;
+  gameOver: (data: { gameStatus: Color | "draw" }) => void;
 }
 
 interface ClientToServerEvents {
@@ -197,14 +197,13 @@ io.on("connection", (socket) => {
       io.to(roomId).emit("moveMade", move, room.white === playerId ? "w" : "b");
 
       if (room.chess.isGameOver()) {
-        io.to(roomId).emit("gameOver", {
-          winner: room.chess.isDraw()
-            ? undefined
-            : room.chess.turn() === "w"
-            ? "b"
-            : "w",
-        });
+        const gameStatus = room.chess.isDraw()
+          ? "draw"
+          : room.chess.turn() === "w"
+          ? "b"
+          : "w";
 
+        io.to(roomId).emit("gameOver", { gameStatus });
         io.to(roomId).disconnectSockets(true);
       }
 
