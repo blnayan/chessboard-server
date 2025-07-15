@@ -6,6 +6,39 @@ import { v4 as uuidv4 } from "uuid";
 import * as z from "zod";
 import cors from "cors";
 
+const JoinRoomData = z.object({
+  roomId: z.string(),
+  playerId: z.string(),
+  playerColor: z.enum(["w", "b"]),
+});
+
+type JoinRoomDataType = z.infer<typeof JoinRoomData>;
+
+const MoveData = z.object({
+  roomId: z.string(),
+  playerId: z.string(),
+  move: z.object({
+    from: z.string(),
+    to: z.string(),
+    promotion: z.string().optional(),
+  }),
+});
+
+type MoveDataType = z.infer<typeof MoveData>;
+
+interface ServerToClientEvents {
+  error: (message: string) => void;
+  roomJoined: (data: JoinRoomDataType) => void;
+  bothPlayersReady: () => void;
+  moveMade: (move: MoveDataType["move"], moveColor: Color) => void;
+  gameOver: (data: { winner?: Color }) => void;
+}
+
+interface ClientToServerEvents {
+  joinRoom: (data: JoinRoomDataType) => void;
+  move: (data: MoveDataType) => void;
+}
+
 const app = express();
 const httpServer = createServer(app);
 
@@ -21,19 +54,6 @@ app.use(
     credentials: true,
   })
 );
-
-interface ServerToClientEvents {
-  error: (message: string) => void;
-  roomJoined: (data: JoinRoomDataType) => void;
-  bothPlayersReady: () => void;
-  moveMade: (move: MoveDataType["move"], moveColor: Color) => void;
-  gameOver: (data: { winner?: Color }) => void;
-}
-
-interface ClientToServerEvents {
-  joinRoom: (data: JoinRoomDataType) => void;
-  move: (data: MoveDataType) => void;
-}
 
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
   cors: {
@@ -88,33 +108,12 @@ app.get("/newgame", (req, res) => {
   }
 });
 
-const JoinRoomData = z.object({
-  roomId: z.string(),
-  playerId: z.string(),
-  color: z.enum(["w", "b"]),
-});
-
-type JoinRoomDataType = z.infer<typeof JoinRoomData>;
-
-const MoveData = z.object({
-  roomId: z.string(),
-  playerId: z.string(),
-  move: z.object({
-    from: z.string(),
-    to: z.string(),
-    promotion: z.string().optional(),
-  }),
-});
-
-type MoveDataType = z.infer<typeof MoveData>;
-
 let socketConnections = 0;
-
 io.on("connection", (socket) => {
   socketConnections++;
   console.log("Socket connections", socketConnections);
   socket.on("joinRoom", (data) => {
-    const { roomId, playerId, color } = JoinRoomData.parse(data);
+    const { roomId, playerId, playerColor } = JoinRoomData.parse(data);
 
     const room = closedRooms.get(roomId) || openRooms.get(roomId);
     if (!room) {
@@ -130,8 +129,8 @@ io.on("connection", (socket) => {
 
     // Verify color matches the player's role in the room
     if (
-      (room.white === playerId && color !== "w") ||
-      (room.black === playerId && color !== "b")
+      (room.white === playerId && playerColor !== "w") ||
+      (room.black === playerId && playerColor !== "b")
     ) {
       socket.emit("error", "Invalid color");
       return;
@@ -149,7 +148,7 @@ io.on("connection", (socket) => {
     socket.emit("roomJoined", {
       roomId,
       playerId,
-      color: room.white === playerId ? "w" : "b",
+      playerColor: room.white === playerId ? "w" : "b",
     });
 
     if (room.connectedSockets.size === 2) {
