@@ -44,7 +44,9 @@ const httpServer = createServer(app);
 
 const allowedOrigins = [
   "http://localhost:3000",
-  "https://your-frontend.vercel.app",
+  "https://chessboard-lake.vercel.app",
+  "https://chessboard-lateridiots-projects.vercel.app",
+  "https://chessboard-git-main-lateridiots-projects.vercel.app",
 ];
 
 app.use(
