@@ -50,7 +50,7 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: allowedOrigins,
-    methods: ["GET"],
+    methods: ["GET", "POST"],
     credentials: true,
   })
 );
@@ -58,13 +58,9 @@ app.use(
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
   cors: {
     origin: allowedOrigins,
-    methods: ["GET"],
+    methods: ["GET", "POST"],
     credentials: true,
   },
-});
-
-app.get("/", (req, res) => {
-  res.send("Hello World!");
 });
 
 interface Room {
@@ -95,7 +91,8 @@ app.get("/newgame", (req, res) => {
 
     openRooms.set(roomId, newRoom);
 
-    res.json({ roomId, playerId, color: "w" });
+    res.json({ roomId, playerId, playerColor: "w" });
+    return;
   } else {
     const [roomId, room] = openRooms.entries().next().value as [string, Room];
     const playerId = uuidv4();
@@ -104,9 +101,27 @@ app.get("/newgame", (req, res) => {
     closedRooms.set(roomId, room);
     openRooms.delete(roomId);
 
-    res.json({ roomId, playerId, color: "b" });
+    res.json({ roomId, playerId, playerColor: "b" });
+    return;
   }
 });
+
+// app.get("/isRoomOpen", (req, res) => {
+//   const roomId = req.query.roomId;
+//   if (typeof roomId !== "string") {
+//     res.json(false);
+//     return;
+//   }
+
+//   const room = openRooms.get(roomId) || closedRooms.get(roomId);
+//   if (!room) {
+//     res.json(false);
+//     return;
+//   }
+
+//   res.json(true);
+//   return;
+// });
 
 let socketConnections = 0;
 io.on("connection", (socket) => {
